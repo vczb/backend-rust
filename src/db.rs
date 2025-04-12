@@ -1,23 +1,46 @@
-use tokio_postgres::{Client, Error, NoTls};
+use axum::{Json, extract::State, http::StatusCode};
+use std::sync::Arc;
+use tokio_postgres::{Client, NoTls};
 
-pub async fn connect() -> Result<Client, Error> {
+use crate::types::Person;
+
+pub async fn connect() -> Result<Arc<Client>, tokio_postgres::Error> {
     let (client, connection) = tokio_postgres::connect(
         "host=127.0.0.1 user=rust_user password=rust_password dbname=rust_database",
         NoTls,
     )
     .await?;
 
-    // Spawn the connection handler in the background
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("Postgres connection error: {}", e);
+            eprintln!("connection error: {}", e);
         }
     });
 
-    // Test query (optional — you can remove it if you just want the client)
-    let rows = client.query("SELECT $1::TEXT", &[&"hello world"]).await?;
-    let value: &str = rows[0].get(0);
-    assert_eq!(value, "hello world");
+    Ok(Arc::new(client))
+}
 
-    Ok(client)
+pub async fn query_people(
+    State(client): State<Arc<Client>>,
+) -> Result<Json<Vec<Person>>, StatusCode> {
+    let rows = client
+        .query(
+            "SELECT id, nickname, name, birth_date, stack FROM people",
+            &[],
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let people = rows
+        .into_iter()
+        .map(|row| Person {
+            id: row.get("id"),
+            nickname: row.get("nickname"),
+            name: row.get("name"),
+            birth_date: row.get("birth_date"),
+            stack: row.get("stack"),
+        })
+        .collect();
+
+    Ok(Json(people))
 }

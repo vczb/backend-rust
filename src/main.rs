@@ -1,19 +1,21 @@
 use axum::{Router, routing::get};
 
+mod types;
+
 mod db;
-use db::connect;
+use db::{connect, query_people};
 
 #[tokio::main]
 async fn main() {
-    // initialize DB connection
     let client = connect().await.expect("Failed to connect to DB");
 
-    // you could store `client` in app state if needed later
+    let app = Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        .route("/people", get(query_people).post(post_people))
+        .with_state(client.clone());
 
-    // build the app
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
-
-    // run the app
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+
+async fn post_people() {}
