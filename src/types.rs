@@ -16,3 +16,8 @@ pub struct NewPerson {
     pub birth_date: Option<String>,
     pub stack: Option<String>,
 }
+
+#[derive(Serialize)]
+pub struct CountPerson {
+    pub count: i64,
+}

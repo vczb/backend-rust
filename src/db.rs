@@ -2,7 +2,7 @@ use axum::{Json, extract::State, http::StatusCode};
 use std::sync::Arc;
 use tokio_postgres::{Client, NoTls};
 
-use crate::types::{NewPerson, Person};
+use crate::types::{CountPerson, NewPerson, Person};
 
 pub async fn connect() -> Result<Arc<Client>, tokio_postgres::Error> {
     let (client, connection) = tokio_postgres::connect(
@@ -45,6 +45,27 @@ pub async fn query_people(
     Ok(Json(people))
 }
 
+pub async fn count_people(
+    State(client): State<Arc<Client>>,
+) -> Result<Json<CountPerson>, StatusCode> {
+    // Perform the query and get the first row
+    let row = client
+        .query_one("SELECT COUNT(*) AS count FROM people;", &[])
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Extract the count from the row
+    let count: i64 = row
+        .try_get("count")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Create a CountPerson instance with the extracted count
+    let count_person = CountPerson { count };
+
+    // Return the count as JSON
+    Ok(Json(count_person))
+}
+
 pub async fn insert_person(
     State(client): State<Arc<Client>>,
     Json(payload): Json<NewPerson>,
@@ -65,3 +86,5 @@ pub async fn insert_person(
 
     Ok(StatusCode::CREATED)
 }
+
+pub async fn query_person_by_id() {}
