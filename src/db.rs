@@ -33,38 +33,61 @@ pub async fn query_people(
 
     let result: Query<PersonQueryParams> = Query::try_from_uri(&uri).unwrap();
 
-    println!("result {:?}", result.nickname);
+    let mut query = String::from("SELECT id::text, nickname, name, birth_date, stack FROM people");
+    let mut params = Vec::new();
+    let mut param_idx = 1;
+    let mut has_where = false;
 
-    if let Some(nickname) = &result.nickname {
-        let rows = client
-            .query(
-                "SELECT id::text, nickname, name, birth_date, stack FROM people WHERE nickname = $1",
-                &[&nickname],
-            )
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-        let people = rows
-            .into_iter()
-            .map(|row| Person {
-                id: row.get::<_, &str>("id").to_string(),
-                nickname: row.get("nickname"),
-                name: row.get("name"),
-                birth_date: row.get("birth_date"),
-                stack: row.get("stack"),
-            })
-            .collect();
-
-        return Ok(Json(people));
+    if result.nickname.is_some() || result.name.is_some() || result.stack.is_some() {
+        query.push_str(" WHERE");
+        has_where = true;
     }
 
-    let rows = client
-        .query(
-            "SELECT id::text, nickname, name, birth_date, stack FROM people",
-            &[],
-        )
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Some(nickname) = &result.nickname {
+        query.push_str(&format!(" nickname = ${}", param_idx));
+        params.push(nickname);
+        param_idx += 1;
+    }
+
+    if let Some(name) = &result.name {
+        if param_idx > 1 {
+            query.push_str(" AND");
+        }
+        query.push_str(&format!(" name = ${}", param_idx));
+        params.push(name);
+        param_idx += 1;
+    }
+
+    if let Some(stack) = &result.stack {
+        if param_idx > 1 {
+            query.push_str(" AND");
+        }
+        query.push_str(&format!(" stack = ${}", param_idx));
+        params.push(stack);
+        // Don't need to increment param_idx here as it's the last parameter
+    }
+
+    println!("Query: {}", query);
+
+    let rows = if has_where {
+        let mut param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = Vec::new();
+        for param in &params {
+            param_refs.push(param as &(dyn tokio_postgres::types::ToSql + Sync));
+        }
+        
+        client
+            .query(&query, &param_refs[..])
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    } else {
+        client
+            .query(
+                "SELECT id::text, nickname, name, birth_date, stack FROM people",
+                &[],
+            )
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    };
 
     let people = rows
         .into_iter()
