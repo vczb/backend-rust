@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct PersonQueryParams {
-    pub id: Option<String>,
+    pub name: Option<String>,
     pub nickname: Option<String>,
     pub stack: Option<String>,
 }

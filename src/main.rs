@@ -1,4 +1,4 @@
-use axum::{Router, extract::Path, routing::get};
+use axum::{Router, routing::get};
 
 mod types;
 

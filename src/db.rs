@@ -1,7 +1,7 @@
 use axum::{
     Json,
-    extract::{Path, Query, State},
-    http::{Method, StatusCode, Uri},
+    extract::{FromRequest, Path, Query, State},
+    http::{StatusCode, Uri},
 };
 use std::sync::Arc;
 use tokio_postgres::{Client, NoTls};
@@ -26,14 +26,37 @@ pub async fn connect() -> Result<Arc<Client>, tokio_postgres::Error> {
 }
 
 pub async fn query_people(
-    params: Option<Query<PersonQueryParams>>,
+    uri: Uri,
     State(client): State<Arc<Client>>,
 ) -> Result<Json<Vec<Person>>, StatusCode> {
-    println!("OK vini");
+    println!("URI {:?}", uri);
 
-    let query = params.unwrap();
+    let result: Query<PersonQueryParams> = Query::try_from_uri(&uri).unwrap();
 
-    println!("OK {:?}", query);
+    println!("result {:?}", result.nickname);
+
+    if let Some(nickname) = &result.nickname {
+        let rows = client
+            .query(
+                "SELECT id::text, nickname, name, birth_date, stack FROM people WHERE nickname = $1",
+                &[&nickname],
+            )
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let people = rows
+            .into_iter()
+            .map(|row| Person {
+                id: row.get::<_, &str>("id").to_string(),
+                nickname: row.get("nickname"),
+                name: row.get("name"),
+                birth_date: row.get("birth_date"),
+                stack: row.get("stack"),
+            })
+            .collect();
+
+        return Ok(Json(people));
+    }
 
     let rows = client
         .query(
