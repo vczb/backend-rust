@@ -1,6 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize)]
+pub struct PersonQueryParams {
+    pub id: Option<String>,
+    pub nickname: Option<String>,
+    pub stack: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Person {
     pub id: String,
     pub nickname: String,

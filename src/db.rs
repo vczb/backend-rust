@@ -1,8 +1,13 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+    http::{Method, StatusCode, Uri},
+};
 use std::sync::Arc;
 use tokio_postgres::{Client, NoTls};
+use uuid::Uuid;
 
-use crate::types::{CountPerson, NewPerson, Person};
+use crate::types::{CountPerson, NewPerson, Person, PersonQueryParams};
 
 pub async fn connect() -> Result<Arc<Client>, tokio_postgres::Error> {
     let (client, connection) = tokio_postgres::connect(
@@ -21,8 +26,15 @@ pub async fn connect() -> Result<Arc<Client>, tokio_postgres::Error> {
 }
 
 pub async fn query_people(
+    params: Option<Query<PersonQueryParams>>,
     State(client): State<Arc<Client>>,
 ) -> Result<Json<Vec<Person>>, StatusCode> {
+    println!("OK vini");
+
+    let query = params.unwrap();
+
+    println!("OK {:?}", query);
+
     let rows = client
         .query(
             "SELECT id::text, nickname, name, birth_date, stack FROM people",
@@ -87,4 +99,34 @@ pub async fn insert_person(
     Ok(StatusCode::CREATED)
 }
 
-pub async fn query_person_by_id() {}
+pub async fn query_person_by_id(
+    Path(id_str): Path<String>,
+    State(client): State<Arc<Client>>,
+) -> Result<Json<Person>, StatusCode> {
+    // Parse the string as UUID
+    let uuid = Uuid::parse_str(&id_str).map_err(|_| {
+        eprintln!("Invalid UUID format: {}", id_str);
+        StatusCode::BAD_REQUEST
+    })?;
+
+    let row = client
+        .query_one(
+            "SELECT id::text, nickname, name, birth_date, stack FROM people WHERE id = $1",
+            &[&uuid],
+        )
+        .await
+        .map_err(|err| {
+            eprintln!("Database query error: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let person = Person {
+        id: row.get::<_, &str>("id").to_string(),
+        nickname: row.get("nickname"),
+        name: row.get("name"),
+        birth_date: row.get("birth_date"),
+        stack: row.get("stack"),
+    };
+
+    Ok(Json(person))
+}

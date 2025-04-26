@@ -1,4 +1,4 @@
-use axum::{Router, routing::get};
+use axum::{Router, extract::Path, routing::get};
 
 mod types;
 
@@ -12,7 +12,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/people", get(query_people).post(insert_person))
-        .route("/people/{id}", get(query_person_by_id))
+        .route("/people/:id", get(query_person_by_id))
         .route("/count-people", get(count_people))
         .with_state(client.clone());
 
