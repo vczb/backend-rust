@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{FromRequest, Path, Query, State},
+    extract::{Path, Query, State},
     http::{StatusCode, Uri},
 };
 use std::sync::Arc;
@@ -29,8 +29,6 @@ pub async fn query_people(
     uri: Uri,
     State(client): State<Arc<Client>>,
 ) -> Result<Json<Vec<Person>>, StatusCode> {
-    println!("URI {:?}", uri);
-
     let result: Query<PersonQueryParams> = Query::try_from_uri(&uri).unwrap();
 
     let mut query = String::from("SELECT id::text, nickname, name, birth_date, stack FROM people");
@@ -71,8 +69,6 @@ pub async fn query_people(
         params.push(last_lit); // Push the reference to params
         // Don't need to increment param_idx here as it's the last parameter
     }
-
-    println!("Query: {}", query);
 
     let rows = if has_where {
         let mut param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = Vec::new();
