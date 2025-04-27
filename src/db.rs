@@ -58,12 +58,17 @@ pub async fn query_people(
         param_idx += 1;
     }
 
+    let mut literals = Vec::new(); // New vector to store owned strings
+
     if let Some(stack) = &result.stack {
         if param_idx > 1 {
             query.push_str(" AND");
         }
-        query.push_str(&format!(" stack = ${}", param_idx));
-        params.push(stack);
+        query.push_str(&format!(" stack LIKE ${}", param_idx));
+        let wildcard_stack = format!("%{}%", stack);
+        literals.push(wildcard_stack); // Store owned string in literals
+        let last_lit = literals.last().unwrap(); // Get a reference to the last inserted item
+        params.push(last_lit); // Push the reference to params
         // Don't need to increment param_idx here as it's the last parameter
     }
 
@@ -74,7 +79,7 @@ pub async fn query_people(
         for param in &params {
             param_refs.push(param as &(dyn tokio_postgres::types::ToSql + Sync));
         }
-        
+
         client
             .query(&query, &param_refs[..])
             .await

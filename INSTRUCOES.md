@@ -348,3 +348,21 @@ Você precisa fazer o seguinte para participar:
   - Um `README.md` com um link para o repositório git de onde o código fonte sua aplicação estiver.
   - Um `docker-compose.yml` com a declaração das imagens da sua aplicação e com os recursos já distribuídos corretamente.
   - Opcionalmente, um `nginx.conf` com as configurações de balanceamento caso for usar a imagem nginx padrão. Se não for, seu `docker-compose.yml` precisa apontar para uma imagem personalizada com essas configurações.
+
+---
+
+curl -X GET http://localhost:3000/people
+curl -X GET http://localhost:3000/people?nickname=viniz
+
+curl -X GET http://localhost:3000/people/6e6da8d4-6c00-40fd-bc4b-fe17c8801f10
+
+curl -X GET http://localhost:3000/count-people
+
+curl -X POST http://localhost:3000/people \
+ -H "Content-Type: application/json" \
+ -d '{
+"nickname": "example_nickname",
+"name": "example_name",
+"birth_date": "1990-01-01",
+"stack": "example_stack"
+}'
